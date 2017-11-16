@@ -118,7 +118,7 @@ func (s *SimpleServer) Start(ray xray.Ray) error {
 		s.Stop(ray.Fork())
 	})
 	ray.Info("System signals dispatcher started")
-	ray.Info("Start sequence done. Running on PID :pid", env.PID)
+	ray.Info("Start sequence done. Running on PID :pid at :hostname", env.PID, env.HostName)
 
 	return nil
 }
