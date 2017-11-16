@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mono83/romeo/sig"
+	"github.com/mono83/romeo/env"
 	"github.com/mono83/xray"
 	"github.com/mono83/xray/args"
 )
@@ -113,11 +113,12 @@ func (s *SimpleServer) Start(ray xray.Ray) error {
 	s.wait = make(chan bool, 1)
 
 	// Starting signal handler
-	sig.OnShutdown(func(sig os.Signal) {
+	env.OnShutdown(func(sig os.Signal) {
 		ray.Warning("Received signal :name", args.Name(sig.String()))
 		s.Stop(ray.Fork())
 	})
 	ray.Info("System signals dispatcher started")
+	ray.Info("Start sequence done. Running on PID :pid", env.PID)
 
 	return nil
 }
@@ -162,7 +163,7 @@ func (s *SimpleServer) Stop(ray xray.Ray) error {
 		wg.Wait()
 	}
 
-	ray.Info("Shutdown sequence done in :delta", args.Delta(time.Now().Sub(allBefore)))
+	ray.Info("Shutdown sequence done in :delta. PID :pid", args.Delta(time.Now().Sub(allBefore)), env.PID)
 
 	s.wait <- true
 	s.wait = nil
