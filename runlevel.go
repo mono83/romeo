@@ -21,6 +21,11 @@ const (
 	RunLevelLast                    = 255
 )
 
+// WithRunLevel describes structures (and services) that has run priorities
+type WithRunLevel interface {
+	GetRunLevel() RunLevel
+}
+
 func (r RunLevel) String() string {
 	prefix := "unknown"
 	switch r {
@@ -45,4 +50,16 @@ func (r RunLevel) String() string {
 	}
 
 	return prefix + " (" + strconv.Itoa(int(r)) + ")"
+}
+
+// RunLevelForService calculates run level for service
+func RunLevelForService(s Service) RunLevel {
+	if s == nil {
+		return RunLevelFirst
+	}
+	if r, ok := s.(WithRunLevel); ok {
+		return r.GetRunLevel()
+	}
+
+	return RunLevelMain
 }

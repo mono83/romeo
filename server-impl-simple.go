@@ -1,7 +1,6 @@
 package romeo
 
 import (
-	"errors"
 	"os"
 	"sync"
 	"time"
@@ -13,19 +12,20 @@ import (
 
 // SimpleServer is simple services server implementation
 type SimpleServer struct {
-	m         sync.Mutex
-	wait      chan bool
-	starters  map[RunLevel][]Starter
-	reloaders []*reloader
+	m        sync.Mutex
+	wait     chan bool
+	services map[RunLevel][]Service
 }
 
-// registerStarter is utility method, used to register services, able to start
-func (s *SimpleServer) registerStarter(service Starter) {
-	if s.starters == nil {
-		s.starters = map[RunLevel][]Starter{}
+// register is utility method, used to register services, able to start
+func (s *SimpleServer) register(service Service) {
+	if s.services == nil {
+		s.services = map[RunLevel][]Service{}
 	}
 
-	s.starters[service.GetRunLevel()] = append(s.starters[service.GetRunLevel()], service)
+	rl := RunLevelForService(service)
+
+	s.services[rl] = append(s.services[rl], service)
 }
 
 // Register registers one or more services on server
@@ -38,14 +38,7 @@ func (s *SimpleServer) Register(services ...Service) error {
 			if service == nil {
 				continue
 			}
-			if x, ok := service.(Starter); ok {
-				s.registerStarter(x)
-			}
-			if x, ok := service.(Reloader); ok {
-				rc := &reloader{Reloader: x}
-				s.reloaders = append(s.reloaders, rc)
-				s.registerStarter(rc)
-			}
+			s.register(service)
 		}
 	}
 	return nil
@@ -73,7 +66,7 @@ func (s *SimpleServer) Start(ray xray.Ray) error {
 	allBefore := time.Now()
 	for i = 0; i <= 255; i++ {
 		rl := RunLevel(i)
-		services, ok := s.starters[rl]
+		services, ok := s.services[rl]
 		if !ok || len(services) == 0 {
 			// No services on runlevel, skip
 			continue
@@ -85,8 +78,8 @@ func (s *SimpleServer) Start(ray xray.Ray) error {
 		ray.Debug("Starting :count services on run level :level", args.Count(len(services)), args.String{N: "level", V: rl.String()})
 		var resultingError error
 		for _, service := range services {
-			go func(s Starter) {
-				serviceLog := ray.With(args.Name(s.GetName()))
+			go func(s Service) {
+				serviceLog := ray.With(args.Name(NameForService(s)))
 				serviceLog.Debug("Starting service :name")
 				before := time.Now()
 				if err := s.Start(serviceLog); err != nil {
@@ -137,7 +130,7 @@ func (s *SimpleServer) Stop(ray xray.Ray) error {
 	allBefore := time.Now()
 	for i = 255; i >= 0; i-- {
 		rl := RunLevel(i)
-		services, ok := s.starters[rl]
+		services, ok := s.services[rl]
 		if !ok || len(services) == 0 {
 			// No services on runlevel, skip
 			continue
@@ -147,18 +140,14 @@ func (s *SimpleServer) Stop(ray xray.Ray) error {
 		wg := sync.WaitGroup{}
 		wg.Add(len(services))
 		for _, service := range services {
-			st, ok := service.(Stopper)
-			if !ok {
-				continue
-			}
-			go func(s Stopper) {
-				serviceLog := ray.With(args.Name(s.GetName()))
+			go func(s Service) {
+				serviceLog := ray.With(args.Name(NameForService(s)))
 				serviceLog.Debug("Stopping service :name on :level", args.String{N: "level", V: rl.String()})
 				if err := s.Stop(serviceLog); err != nil {
 					serviceLog.Error("Service :name shutdown failed with :err", args.Error{Err: err})
 				}
 				wg.Done()
-			}(st)
+			}(service)
 		}
 		wg.Wait()
 	}
@@ -181,50 +170,4 @@ func (s *SimpleServer) Join() {
 		<-c
 		time.Sleep(50 * time.Millisecond)
 	}
-}
-
-type reloader struct {
-	m      sync.Mutex
-	ticker *time.Ticker
-	Reloader
-}
-
-// GetRunLevel is Starter interface implementation
-func (*reloader) GetRunLevel() RunLevel { return RunLevelReloaders }
-
-// Stop is Stopper interface implementation
-func (r *reloader) Stop(ray xray.Ray) error {
-	r.m.Lock()
-	defer r.m.Unlock()
-	if r.ticker != nil {
-		r.ticker.Stop()
-		r.ticker = nil
-	}
-	return nil
-}
-
-// Start is Starter interface implementation
-func (r *reloader) Start(ray xray.Ray) error {
-	r.m.Lock()
-	defer r.m.Unlock()
-	if r.ticker != nil {
-		return ErrAlreadyRunning{Service: r}
-	}
-	delta := r.GetReloadInterval()
-	if delta.Seconds() < 0.1 {
-		return errors.New("at least 100ms must be configured for reloader")
-	}
-	if err := r.Reload(ray); err != nil {
-		return err
-	}
-
-	// Starting ticker
-	r.ticker = time.NewTicker(delta)
-	go func() {
-		for range r.ticker.C {
-			r.Reload(ray.Fork())
-		}
-	}()
-
-	return nil
 }
