@@ -13,7 +13,7 @@ type Named interface {
 }
 
 // NameForService returns service name
-func NameForService(s Service) string {
+func NameForService(s interface{}) string {
 	if s == nil {
 		return ""
 	}

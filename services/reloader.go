@@ -23,6 +23,13 @@ type Reloader struct {
 	ticker *time.Ticker
 }
 
+type named interface {
+	GetName()
+}
+
+// GetName returns service name
+func (r *Reloader) GetName() string { return romeo.NameForService(r.Reloadable) }
+
 // GetRunLevel return run level for service
 func (*Reloader) GetRunLevel() romeo.RunLevel { return romeo.RunLevelReloaders }
 

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -17,8 +18,9 @@ type Container []romeo.Service
 func (Container) GetName() string { return "container" }
 
 // Register registers one or more services within container
-func (c Container) Register(services ...romeo.Service) error {
-	c = append(c, services...)
+func (c *Container) Register(services ...romeo.Service) error {
+	*c = append(*c, services...)
+	fmt.Println(c)
 	return nil
 }
 
@@ -26,7 +28,7 @@ func (c Container) Register(services ...romeo.Service) error {
 func (c Container) Start(ray xray.Ray) error {
 	ray = ray.WithLogger("container")
 
-	ray.Debug("Starting services container")
+	ray.Debug("Starting services container with :count services in total", args.Count(len(c)))
 
 	allBefore := time.Now()
 	for _, group := range romeo.GroupByRunLevel(c, false) {
@@ -73,6 +75,7 @@ func (c Container) Stop(ray xray.Ray) error {
 	for _, group := range romeo.GroupByRunLevel(c, true) {
 		rl := romeo.RunLevelForService(group[0])
 		wg := sync.WaitGroup{}
+		wg.Add(len(group))
 
 		for _, service := range group {
 			go func(s romeo.Service) {
@@ -89,4 +92,9 @@ func (c Container) Stop(ray xray.Ray) error {
 
 	ray.Info("Shutdown sequence done in :delta. PID :pid", args.Delta(time.Now().Sub(allBefore)), env.PID)
 	return nil
+}
+
+// Size returns amount of services within container
+func (c Container) Size() int {
+	return len(c)
 }
