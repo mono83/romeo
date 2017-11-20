@@ -63,3 +63,36 @@ func RunLevelForService(s Service) RunLevel {
 
 	return RunLevelMain
 }
+
+// GroupByRunLevel groups services by runlevel
+func GroupByRunLevel(services []Service, reverse bool) [][]Service {
+	if len(services) == 0 {
+		return nil
+	}
+
+	list := [][]Service{}
+	m := map[RunLevel][]Service{}
+
+	for _, service := range services {
+		if service == nil {
+			continue
+		}
+
+		rl := RunLevelForService(service)
+
+		m[rl] = append(m[rl], service)
+	}
+
+	var i int
+	for i = 0; i < 256; i++ {
+		key := RunLevel(i)
+		if reverse {
+			key = RunLevel(255 - i)
+		}
+		if chunk, ok := m[key]; ok {
+			list = append(list, chunk)
+		}
+	}
+
+	return list
+}
