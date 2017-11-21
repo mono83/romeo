@@ -7,11 +7,12 @@ import (
 
 	"github.com/mono83/xray"
 	"github.com/mono83/xray/args"
+	"github.com/mono83/xray/args/env"
 
 	"github.com/mono83/romeo"
 
-	"github.com/mono83/romeo/env"
 	"github.com/mono83/romeo/services"
+	"github.com/mono83/romeo/sys"
 )
 
 // Server is general all-case services server
@@ -68,7 +69,7 @@ func (s *Server) Start(ray xray.Ray) (err error) {
 	s.wait = make(chan bool, 1)
 
 	// Starting signal handler
-	env.OnShutdown(func(sig os.Signal) {
+	sys.OnShutdown(func(sig os.Signal) {
 		ray.Warning("Received signal :name", args.Name(sig.String()))
 		s.Stop(ray.Fork())
 	})

@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/mono83/romeo"
-	"github.com/mono83/romeo/env"
 	"github.com/mono83/xray"
 	"github.com/mono83/xray/args"
+	"github.com/mono83/xray/args/env"
 )
 
 // Container is special service, that is just slice of other services
