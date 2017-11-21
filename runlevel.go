@@ -52,6 +52,10 @@ func (r RunLevel) String() string {
 	return prefix + " (" + strconv.Itoa(int(r)) + ")"
 }
 
+type markerDatabase interface {
+	IsDatabase() bool
+}
+
 // RunLevelForService calculates run level for service
 func RunLevelForService(s Service) RunLevel {
 	if s == nil {
@@ -59,6 +63,9 @@ func RunLevelForService(s Service) RunLevel {
 	}
 	if r, ok := s.(WithRunLevel); ok {
 		return r.GetRunLevel()
+	}
+	if d, ok := s.(markerDatabase); ok && d.IsDatabase() {
+		return RunLevelDB
 	}
 
 	return RunLevelMain
