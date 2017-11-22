@@ -1,7 +1,6 @@
 package services
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -20,7 +19,6 @@ func (Container) GetName() string { return "container" }
 // Register registers one or more services within container
 func (c *Container) Register(services ...romeo.Service) error {
 	*c = append(*c, services...)
-	fmt.Println(c)
 	return nil
 }
 
